@@ -1,6 +1,7 @@
-import { All, Controller, Req, Res, Get } from '@nestjs/common';
+import { All, Controller, Req, Res, Get, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ProxyService } from './proxy.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller()
 export class ProxyController {
@@ -18,8 +19,16 @@ export class ProxyController {
   // Public routes - Auth service
   @All('auth/*')
   async proxyAuth(@Req() req: Request, @Res() res: Response) {
-    const path = req.url.replace('/api/auth', '');
+    const path = req.url;
     return this.forwardToService('auth', path, req, res);
+  }
+
+  // User service (protected)
+  @UseGuards(JwtAuthGuard)
+  @All('users/*')
+  async proxyUser(@Req() req: Request, @Res() res: Response) {
+    const path = req.url;
+    return this.forwardToService('user', path, req, res);
   }
 
   //   private async forwardToService(
