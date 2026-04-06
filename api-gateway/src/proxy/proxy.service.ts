@@ -13,7 +13,13 @@ export class ProxyService {
   private readonly serviceUrls: Map<string, string>;
 
   constructor(private configService: ConfigService) {
-    this.serviceUrls = new Map([['auth', this.configService.get('AUTH_SERVICE_URL')]]);
+    this.serviceUrls = new Map([
+      ['auth', this.configService.get('AUTH_SERVICE_URL')],
+      ['user', this.configService.get('USER_SERVICE_URL')],
+      ['friend', this.configService.get('FRIEND_SERVICE_URL')],
+      ['upload', this.configService.get('UPLOAD_SERVICE_URL')],
+      ['chat', this.configService.get('CHAT_SERVICE_URL')],
+    ]);
   }
 
   // Mục đích để chuyển tiếp yêu cầu đến các microservice tương ứng

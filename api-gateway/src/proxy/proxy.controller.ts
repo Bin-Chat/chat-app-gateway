@@ -31,6 +31,46 @@ export class ProxyController {
     return this.forwardToService('user', path, req, res);
   }
 
+  // Friend service (protected) - exact match for GET /api/friends
+  @UseGuards(JwtAuthGuard)
+  @All('friends')
+  async proxyFriendBase(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('friend', req.url, req, res);
+  }
+
+  // Friend service (protected) - sub-paths like /friends/requests/received
+  @UseGuards(JwtAuthGuard)
+  @All('friends/*')
+  async proxyFriend(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('friend', req.url, req, res);
+  }
+
+  // Upload service — presign and finalize (protected)
+  @UseGuards(JwtAuthGuard)
+  @All('uploads')
+  async proxyUploadBase(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('upload', req.url, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All('uploads/*')
+  async proxyUpload(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('upload', req.url, req, res);
+  }
+
+  // Chat service (protected)
+  @UseGuards(JwtAuthGuard)
+  @All('chat')
+  async proxyChatBase(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('chat', req.url, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All('chat/*')
+  async proxyChat(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('chat', req.url, req, res);
+  }
+
   //   private async forwardToService(
   //   service: string,    // Tên service cần gọi
   //   path: string,       // Đường dẫn API

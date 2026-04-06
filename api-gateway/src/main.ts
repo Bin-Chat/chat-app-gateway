@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { IoAdapter } from '@nestjs/platform-socket.io';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
 
@@ -12,8 +14,33 @@ async function bootstrap() {
   // CORS with credentials (để gửi/nhận cookies)
   const corsOrigins = configService.get('CORS_ORIGIN')?.split(',') || ['http://localhost:5173'];
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      // Native mobile apps (Expo Go / bare RN) send no Origin header
+      if (!origin) return callback(null, true);
+      // Listed origins (web app, Expo web, etc.)
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      // Any localhost port — safe for local development
+      if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
+  });
+
+  // WebSocket adapter (Socket.io)
+  app.useWebSocketAdapter(new IoAdapter(app));
+
+  // Kafka microservice for consuming friend events
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.KAFKA,
+    options: {
+      client: {
+        clientId: 'api-gateway',
+        brokers: [configService.get('KAFKA_BROKER', 'redpanda:9092')],
+      },
+      consumer: {
+        groupId: 'api-gateway-friend-events',
+      },
+    },
   });
 
   // Cookie parser middleware
@@ -24,6 +51,8 @@ async function bootstrap() {
 
   // Global prefix
   app.setGlobalPrefix('api');
+
+  await app.startAllMicroservices();
 
   const port = configService.get('PORT') || 3000;
   await app.listen(port);
