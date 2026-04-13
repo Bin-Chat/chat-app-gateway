@@ -22,7 +22,7 @@ export class GroupEventsConsumer {
   @EventPattern(GROUP_EVENTS.MEMBERS_ADDED)
   handleMembersAdded(@Payload() event: any) {
     this.logger.log(
-      `[group.members_added] conv=${event.conversationId} added=${event.addedUserIds?.length}`,
+      `[group.members_added] conv=${event.conversationId} added=${event.addedUserIds?.length}`
     );
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'group:members_added', event);
@@ -31,23 +31,20 @@ export class GroupEventsConsumer {
 
   @EventPattern(GROUP_EVENTS.MEMBER_REMOVED)
   handleMemberRemoved(@Payload() event: any) {
-    this.logger.log(
-      `[group.member_removed] conv=${event.conversationId} removed=${event.removedUserId}`,
-    );
+    const removedUserId = event.removedUserId || event.removedMemberId;
+    this.logger.log(`[group.member_removed] conv=${event.conversationId} removed=${removedUserId}`);
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'group:member_removed', event);
     }
     // Also notify the removed user
-    if (!event.participants.includes(event.removedUserId)) {
-      this.socketGateway.emitToUser(event.removedUserId, 'group:member_removed', event);
+    if (!event.participants.includes(removedUserId)) {
+      this.socketGateway.emitToUser(removedUserId, 'group:member_removed', event);
     }
   }
 
   @EventPattern(GROUP_EVENTS.MEMBER_LEFT)
   handleMemberLeft(@Payload() event: any) {
-    this.logger.log(
-      `[group.member_left] conv=${event.conversationId} user=${event.userId}`,
-    );
+    this.logger.log(`[group.member_left] conv=${event.conversationId} user=${event.userId}`);
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'group:member_left', event);
     }
@@ -64,7 +61,7 @@ export class GroupEventsConsumer {
   @EventPattern(GROUP_EVENTS.ROLE_CHANGED)
   handleRoleChanged(@Payload() event: any) {
     this.logger.log(
-      `[group.role_changed] conv=${event.conversationId} target=${event.targetUserId} role=${event.newRole}`,
+      `[group.role_changed] conv=${event.conversationId} target=${event.targetUserId} role=${event.newRole}`
     );
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'group:role_changed', event);
@@ -82,7 +79,7 @@ export class GroupEventsConsumer {
   @EventPattern(GROUP_EVENTS.OWNER_TRANSFERRED)
   handleOwnerTransferred(@Payload() event: any) {
     this.logger.log(
-      `[group.owner_transferred] conv=${event.conversationId} new_owner=${event.newOwnerId}`,
+      `[group.owner_transferred] conv=${event.conversationId} new_owner=${event.newOwnerId}`
     );
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'group:owner_transferred', event);

@@ -5,6 +5,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { FriendEventsConsumer } from './friend-events.consumer';
 import { ChatEventsConsumer } from './chat-events.consumer';
 import { GroupEventsConsumer } from './group-events.consumer';
+import { AuthEventsConsumer } from './auth-events.consumer';
 import { SocketGateway } from './socket.gateway';
 
 @Module({
@@ -29,7 +30,13 @@ import { SocketGateway } from './socket.gateway';
       },
     ]),
   ],
-  providers: [SocketGateway, FriendEventsConsumer, ChatEventsConsumer, GroupEventsConsumer],
-  controllers: [FriendEventsConsumer, ChatEventsConsumer, GroupEventsConsumer],
+  providers: [
+    SocketGateway,
+    FriendEventsConsumer,
+    ChatEventsConsumer,
+    GroupEventsConsumer,
+    AuthEventsConsumer,
+  ],
+  controllers: [FriendEventsConsumer, ChatEventsConsumer, GroupEventsConsumer, AuthEventsConsumer],
 })
 export class SocketModule {}
