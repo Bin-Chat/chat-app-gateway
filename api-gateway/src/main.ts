@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { IoAdapter } from '@nestjs/platform-socket.io';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
@@ -25,9 +24,6 @@ async function bootstrap() {
     },
     credentials: true,
   });
-
-  // WebSocket adapter (Socket.io)
-  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Kafka microservice for consuming friend events
   app.connectMicroservice<MicroserviceOptions>({
