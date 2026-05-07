@@ -19,6 +19,7 @@ export class ProxyService {
       ['friend', this.configService.get('FRIEND_SERVICE_URL')],
       ['upload', this.configService.get('UPLOAD_SERVICE_URL')],
       ['chat', this.configService.get('CHAT_SERVICE_URL')],
+      ['ai', this.configService.get('AI_SERVICE_URL')],
     ]);
   }
 
@@ -45,7 +46,10 @@ export class ProxyService {
       throw new Error(`Service ${service} không tồn tại`);
     }
 
-    const url = `${serviceUrl}${path}`;
+    // Strip query string from path to avoid duplicate params (path already has ?cursor=... etc.)
+    // Params are passed via `params` so axios handles encoding correctly.
+    const [pathname] = path.split('?');
+    const url = `${serviceUrl}${pathname}`;
 
     // Remove host header to avoid conflicts
     const requestHeaders = { ...headers };

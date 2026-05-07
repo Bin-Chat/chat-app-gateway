@@ -71,6 +71,19 @@ export class ProxyController {
     return this.forwardToService('chat', req.url, req, res);
   }
 
+  // AI service (protected)
+  @UseGuards(JwtAuthGuard)
+  @All('ai')
+  async proxyAiBase(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('ai', req.url, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All('ai/*')
+  async proxyAi(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('ai', req.url, req, res);
+  }
+
   //   private async forwardToService(
   //   service: string,    // Tên service cần gọi
   //   path: string,       // Đường dẫn API
