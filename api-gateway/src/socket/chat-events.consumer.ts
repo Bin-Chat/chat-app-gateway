@@ -14,6 +14,9 @@ const CHAT_EVENTS = {
   REACTION_TOGGLED: 'chat.reaction.toggled',
   MEMBER_BANNED: 'chat.member.banned',
   MEMBER_UNBANNED: 'chat.member.unbanned',
+  REMINDER_FIRED: 'chat.reminder.fired',
+  REMINDER_UPDATED: 'chat.reminder.updated',
+  REMINDER_DELETED: 'chat.reminder.deleted',
 };
 
 @Controller()
@@ -24,9 +27,7 @@ export class ChatEventsConsumer {
 
   @EventPattern(CHAT_EVENTS.MESSAGE_CREATED)
   handleMessageCreated(@Payload() event: any) {
-    this.logger.log(
-      `[chat.message.created] conv=${event.conversationId} sender=${event.senderId}`,
-    );
+    this.logger.log(`[chat.message.created] conv=${event.conversationId} sender=${event.senderId}`);
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'message:new', event);
     }
@@ -34,9 +35,7 @@ export class ChatEventsConsumer {
 
   @EventPattern(CHAT_EVENTS.MESSAGE_REVOKED)
   handleMessageRevoked(@Payload() event: any) {
-    this.logger.log(
-      `[chat.message.revoked] msg=${event.messageId} conv=${event.conversationId}`,
-    );
+    this.logger.log(`[chat.message.revoked] msg=${event.messageId} conv=${event.conversationId}`);
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'message:revoked', event);
     }
@@ -103,6 +102,50 @@ export class ChatEventsConsumer {
     this.logger.log(`[chat.member.unbanned] conv=${event.conversationId} member=${event.memberId}`);
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'member:unbanned', event);
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.REMINDER_FIRED)
+  handleReminderFired(@Payload() event: any) {
+    this.logger.log(
+      `[chat.reminder.fired] reminder=${event.reminderId} conv=${event.conversationId}`
+    );
+    for (const userId of event.participantIds) {
+      this.socketGateway.emitToUser(userId, 'reminder:fire', {
+        reminderId: event.reminderId,
+        conversationId: event.conversationId,
+        content: event.content,
+        remindAt: event.remindAt,
+        repeat: event.repeat,
+        createdBy: event.createdBy,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.REMINDER_UPDATED)
+  handleReminderUpdated(@Payload() event: any) {
+    this.logger.log(
+      `[chat.reminder.updated] reminder=${event.reminderId} conv=${event.conversationId}`
+    );
+    for (const userId of event.participantIds) {
+      this.socketGateway.emitToUser(userId, 'reminder:updated', {
+        reminderId: event.reminderId,
+        conversationId: event.conversationId,
+        reminder: event.reminder,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.REMINDER_DELETED)
+  handleReminderDeleted(@Payload() event: any) {
+    this.logger.log(
+      `[chat.reminder.deleted] reminder=${event.reminderId} conv=${event.conversationId}`
+    );
+    for (const userId of event.participantIds) {
+      this.socketGateway.emitToUser(userId, 'reminder:deleted', {
+        reminderId: event.reminderId,
+        conversationId: event.conversationId,
+      });
     }
   }
 }
