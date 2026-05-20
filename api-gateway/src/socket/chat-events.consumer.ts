@@ -17,6 +17,9 @@ const CHAT_EVENTS = {
   REMINDER_FIRED: 'chat.reminder.fired',
   REMINDER_UPDATED: 'chat.reminder.updated',
   REMINDER_DELETED: 'chat.reminder.deleted',
+  NOTE_CREATED: 'chat.note.created',
+  NOTE_UPDATED: 'chat.note.updated',
+  NOTE_DELETED: 'chat.note.deleted',
 };
 
 @Controller()
@@ -144,6 +147,41 @@ export class ChatEventsConsumer {
     for (const userId of event.participantIds) {
       this.socketGateway.emitToUser(userId, 'reminder:deleted', {
         reminderId: event.reminderId,
+        conversationId: event.conversationId,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.NOTE_CREATED)
+  handleNoteCreated(@Payload() event: any) {
+    this.logger.log(`[chat.note.created] note=${event.noteId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'note:created', {
+        noteId: event.noteId,
+        conversationId: event.conversationId,
+        note: event.note,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.NOTE_UPDATED)
+  handleNoteUpdated(@Payload() event: any) {
+    this.logger.log(`[chat.note.updated] note=${event.noteId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'note:updated', {
+        noteId: event.noteId,
+        conversationId: event.conversationId,
+        note: event.note,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.NOTE_DELETED)
+  handleNoteDeleted(@Payload() event: any) {
+    this.logger.log(`[chat.note.deleted] note=${event.noteId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'note:deleted', {
+        noteId: event.noteId,
         conversationId: event.conversationId,
       });
     }
