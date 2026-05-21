@@ -20,6 +20,12 @@ const CHAT_EVENTS = {
   NOTE_CREATED: 'chat.note.created',
   NOTE_UPDATED: 'chat.note.updated',
   NOTE_DELETED: 'chat.note.deleted',
+  POLL_CREATED: 'chat.poll.created',
+  POLL_VOTED: 'chat.poll.voted',
+  POLL_OPTION_ADDED: 'chat.poll.option_added',
+  POLL_UPDATED: 'chat.poll.updated',
+  POLL_CLOSED: 'chat.poll.closed',
+  POLL_DELETED: 'chat.poll.deleted',
 };
 
 @Controller()
@@ -182,6 +188,83 @@ export class ChatEventsConsumer {
     for (const userId of event.participantIds ?? []) {
       this.socketGateway.emitToUser(userId, 'note:deleted', {
         noteId: event.noteId,
+        conversationId: event.conversationId,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.POLL_CREATED)
+  handlePollCreated(@Payload() event: any) {
+    this.logger.log(`[chat.poll.created] poll=${event.pollId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'poll:created', {
+        pollId: event.pollId,
+        messageId: event.messageId,
+        conversationId: event.conversationId,
+        poll: event.poll,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.POLL_VOTED)
+  handlePollVoted(@Payload() event: any) {
+    this.logger.log(`[chat.poll.voted] poll=${event.pollId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'poll:voted', {
+        pollId: event.pollId,
+        messageId: event.messageId,
+        conversationId: event.conversationId,
+        poll: event.poll,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.POLL_OPTION_ADDED)
+  handlePollOptionAdded(@Payload() event: any) {
+    this.logger.log(`[chat.poll.option_added] poll=${event.pollId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'poll:option_added', {
+        pollId: event.pollId,
+        messageId: event.messageId,
+        conversationId: event.conversationId,
+        poll: event.poll,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.POLL_UPDATED)
+  handlePollUpdated(@Payload() event: any) {
+    this.logger.log(`[chat.poll.updated] poll=${event.pollId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'poll:updated', {
+        pollId: event.pollId,
+        messageId: event.messageId,
+        conversationId: event.conversationId,
+        poll: event.poll,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.POLL_CLOSED)
+  handlePollClosed(@Payload() event: any) {
+    this.logger.log(`[chat.poll.closed] poll=${event.pollId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'poll:closed', {
+        pollId: event.pollId,
+        messageId: event.messageId,
+        conversationId: event.conversationId,
+        poll: event.poll,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.POLL_DELETED)
+  handlePollDeleted(@Payload() event: any) {
+    this.logger.log(`[chat.poll.deleted] poll=${event.pollId} conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'poll:deleted', {
+        pollId: event.pollId,
+        messageId: event.messageId,
         conversationId: event.conversationId,
       });
     }
