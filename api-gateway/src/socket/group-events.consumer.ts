@@ -11,6 +11,9 @@ const GROUP_EVENTS = {
   ROLE_CHANGED: 'chat.group.role_changed',
   DISSOLVED: 'chat.group.dissolved',
   OWNER_TRANSFERRED: 'chat.group.owner_transferred',
+  JOIN_REQUESTED: 'chat.group.join_requested',
+  JOIN_APPROVED: 'chat.group.join_approved',
+  JOIN_DECLINED: 'chat.group.join_declined',
 };
 
 @Controller()
@@ -84,5 +87,43 @@ export class GroupEventsConsumer {
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'group:owner_transferred', event);
     }
+  }
+
+  @EventPattern(GROUP_EVENTS.JOIN_REQUESTED)
+  handleJoinRequested(@Payload() event: any) {
+    this.logger.log(
+      `[group.join_requested] conv=${event.conversationId} requester=${event.requesterId}`
+    );
+    // Notify each admin/owner so they can see the pending request
+    for (const adminId of event.adminIds ?? []) {
+      this.socketGateway.emitToUser(adminId, 'group:join_requested', event);
+    }
+  }
+
+  @EventPattern(GROUP_EVENTS.JOIN_APPROVED)
+  handleJoinApproved(@Payload() event: any) {
+    this.logger.log(
+      `[group.join_approved] conv=${event.conversationId} requester=${event.requesterId}`
+    );
+    // Notify the approved user
+    this.socketGateway.emitToUser(event.requesterId, 'group:join_approved', event);
+    // Also refresh group membership for all existing participants (triggers members_added logic)
+    for (const userId of event.allParticipantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'group:members_added', {
+        conversationId: event.conversationId,
+        addedBy: event.approvedBy,
+        newMemberIds: [event.requesterId],
+        participants: event.allParticipantIds,
+      });
+    }
+  }
+
+  @EventPattern(GROUP_EVENTS.JOIN_DECLINED)
+  handleJoinDeclined(@Payload() event: any) {
+    this.logger.log(
+      `[group.join_declined] conv=${event.conversationId} requester=${event.requesterId}`
+    );
+    // Notify only the declined user
+    this.socketGateway.emitToUser(event.requesterId, 'group:join_declined', event);
   }
 }
