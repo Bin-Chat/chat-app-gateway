@@ -26,6 +26,11 @@ const CHAT_EVENTS = {
   POLL_UPDATED: 'chat.poll.updated',
   POLL_CLOSED: 'chat.poll.closed',
   POLL_DELETED: 'chat.poll.deleted',
+  TASK_CREATED: 'chat.task.created',
+  TASK_UPDATED: 'chat.task.updated',
+  TASK_COMPLETED: 'chat.task.completed',
+  TASK_DELETED: 'chat.task.deleted',
+  TASK_ASSIGNED: 'chat.task.assigned',
 };
 
 @Controller()
@@ -266,6 +271,66 @@ export class ChatEventsConsumer {
         pollId: event.pollId,
         messageId: event.messageId,
         conversationId: event.conversationId,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.TASK_CREATED)
+  handleTaskCreated(@Payload() event: any) {
+    this.logger.log(`[chat.task.created] conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'task:created', {
+        conversationId: event.conversationId,
+        batchId: event.batchId,
+        task: event.task,
+        tasks: event.tasks,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.TASK_UPDATED)
+  handleTaskUpdated(@Payload() event: any) {
+    this.logger.log(`[chat.task.updated] conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'task:updated', {
+        conversationId: event.conversationId,
+        task: event.task,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.TASK_COMPLETED)
+  handleTaskCompleted(@Payload() event: any) {
+    this.logger.log(`[chat.task.completed] conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'task:completed', {
+        conversationId: event.conversationId,
+        task: event.task,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.TASK_DELETED)
+  handleTaskDeleted(@Payload() event: any) {
+    this.logger.log(`[chat.task.deleted] conv=${event.conversationId}`);
+    for (const userId of event.participantIds ?? []) {
+      this.socketGateway.emitToUser(userId, 'task:deleted', {
+        conversationId: event.conversationId,
+        taskId: event.taskId,
+      });
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.TASK_ASSIGNED)
+  handleTaskAssigned(@Payload() event: any) {
+    this.logger.log(`[chat.task.assigned] conv=${event.conversationId} -> ${event.assigneeId}`);
+    if (event.assigneeId) {
+      this.socketGateway.emitToUser(event.assigneeId, 'task:assigned', {
+        conversationId: event.conversationId,
+        taskId: event.taskId,
+        title: event.title,
+        assigneeId: event.assigneeId,
+        assignedBy: event.assignedBy,
       });
     }
   }
