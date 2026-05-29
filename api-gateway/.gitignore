@@ -17,6 +17,7 @@ build/
 .env.local
 .env.development.local
 .env.test.local
+.env.production
 .env.production.local
 
 # NestJS
@@ -57,3 +58,5 @@ Thumbs.db
 # Database
 *.sqlite
 *.db
+
+.env.production
