@@ -97,6 +97,20 @@ export class ProxyService {
     }
   }
 
+  /**
+   * Retry co kiem soat cho request tu API Gateway sang microservice noi bo.
+   *
+   * Luong xu ly:
+   * 1. Gateway goi service dich voi timeout cau hinh boi PROXY_TIMEOUT_MS.
+   * 2. Neu request thanh cong thi tra ve ngay.
+   * 3. Neu request loi tam thoi, Gateway cho PROXY_RETRY_DELAY_MS roi thu lai.
+   * 4. Neu het so lan retry ma van loi, loi duoc nem ra de controller tra 503.
+   *
+   * Mac dinh production:
+   * - timeout: 5000ms
+   * - retry delay: 3000ms
+   * - retry attempts: 1
+   */
   private async requestWithRetry(config: AxiosRequestConfig) {
     let lastError: unknown;
 
@@ -108,6 +122,10 @@ export class ProxyService {
         if (!this.shouldRetry(config, error, attempt)) {
           throw error;
         }
+
+        // Chi retry khi loi co kha nang la tam thoi.
+        // Vi du: service noi bo dang restart, network loi ngan, timeout, hoac HTTP 5xx.
+        // Delay 3 giay giup service co thoi gian khoi phuc truoc khi Gateway thu lai.
         await this.sleep(this.retryDelayMs);
       }
     }
@@ -115,6 +133,13 @@ export class ProxyService {
     throw lastError;
   }
 
+  /**
+   * Dieu kien retry:
+   * - Chi retry GET/HEAD vi day la request doc du lieu, it gay side effect.
+   * - Khong retry POST/PUT/PATCH/DELETE de tranh tao duplicate data
+   *   nhu gui trung tin nhan, upload trung file, tao trung ban ghi.
+   * - Chi retry khi gap timeout, network error, hoac response 5xx.
+   */
   private shouldRetry(config: AxiosRequestConfig, error: unknown, attempt: number) {
     if (attempt >= this.retryAttempts || !axios.isAxiosError(error)) return false;
 

@@ -1,12 +1,25 @@
-import { All, Controller, Req, Res, Get, UseGuards } from '@nestjs/common';
+import { All, Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
-import { ProxyService } from './proxy.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ProxyService } from './proxy.service';
+
+const RATE_LIMIT = {
+  health: { default: { ttl: 60_000, limit: 300 } },
+  authSensitive: { default: { ttl: 60_000, limit: 10 } },
+  authGeneral: { default: { ttl: 60_000, limit: 60 } },
+  userSearch: { default: { ttl: 60_000, limit: 60 } },
+  friend: { default: { ttl: 60_000, limit: 120 } },
+  upload: { default: { ttl: 60_000, limit: 30 } },
+  chat: { default: { ttl: 60_000, limit: 240 } },
+  ai: { default: { ttl: 60_000, limit: 20 } },
+};
 
 @Controller()
 export class ProxyController {
   constructor(private proxyService: ProxyService) {}
 
+  @Throttle(RATE_LIMIT.health)
   @Get('health')
   health() {
     return {
@@ -16,81 +29,99 @@ export class ProxyController {
     };
   }
 
-  // Public routes - Auth service
-  @All('auth/*')
-  async proxyAuth(@Req() req: Request, @Res() res: Response) {
-    const path = req.url;
-    return this.forwardToService('auth', path, req, res);
+  // Auth endpoints de bi brute force/spam email nen limit chat hon global limit.
+  @Throttle(RATE_LIMIT.authSensitive)
+  @All([
+    'auth/login',
+    'auth/register',
+    'auth/refresh',
+    'auth/forgot-password',
+    'auth/reset-password',
+    'auth/send-otp',
+    'auth/verify-otp',
+    'auth/resend-verification',
+  ])
+  async proxySensitiveAuth(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('auth', req.url, req, res);
   }
 
-  // User service (protected)
+  // Cac auth endpoint con lai van co limit rieng, nhung thoang hon login/OTP.
+  @Throttle(RATE_LIMIT.authGeneral)
+  @All('auth/*')
+  async proxyAuth(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('auth', req.url, req, res);
+  }
+
+  // Search user de bi spam khi go ten lien tuc, nen tach limit rieng.
+  @Throttle(RATE_LIMIT.userSearch)
+  @UseGuards(JwtAuthGuard)
+  @All('users/search')
+  async proxyUserSearch(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('user', req.url, req, res);
+  }
+
   @UseGuards(JwtAuthGuard)
   @All('users/*')
   async proxyUser(@Req() req: Request, @Res() res: Response) {
-    const path = req.url;
-    return this.forwardToService('user', path, req, res);
+    return this.forwardToService('user', req.url, req, res);
   }
 
-  // Friend service (protected) - exact match for GET /api/friends
+  @Throttle(RATE_LIMIT.friend)
   @UseGuards(JwtAuthGuard)
   @All('friends')
   async proxyFriendBase(@Req() req: Request, @Res() res: Response) {
     return this.forwardToService('friend', req.url, req, res);
   }
 
-  // Friend service (protected) - sub-paths like /friends/requests/received
+  @Throttle(RATE_LIMIT.friend)
   @UseGuards(JwtAuthGuard)
   @All('friends/*')
   async proxyFriend(@Req() req: Request, @Res() res: Response) {
     return this.forwardToService('friend', req.url, req, res);
   }
 
-  // Upload service — presign and finalize (protected)
+  @Throttle(RATE_LIMIT.upload)
   @UseGuards(JwtAuthGuard)
   @All('uploads')
   async proxyUploadBase(@Req() req: Request, @Res() res: Response) {
     return this.forwardToService('upload', req.url, req, res);
   }
 
+  @Throttle(RATE_LIMIT.upload)
   @UseGuards(JwtAuthGuard)
   @All('uploads/*')
   async proxyUpload(@Req() req: Request, @Res() res: Response) {
     return this.forwardToService('upload', req.url, req, res);
   }
 
-  // Chat service (protected)
+  @Throttle(RATE_LIMIT.chat)
   @UseGuards(JwtAuthGuard)
   @All('chat')
   async proxyChatBase(@Req() req: Request, @Res() res: Response) {
     return this.forwardToService('chat', req.url, req, res);
   }
 
+  @Throttle(RATE_LIMIT.chat)
   @UseGuards(JwtAuthGuard)
   @All('chat/*')
   async proxyChat(@Req() req: Request, @Res() res: Response) {
     return this.forwardToService('chat', req.url, req, res);
   }
 
-  // AI service (protected)
+  @Throttle(RATE_LIMIT.ai)
   @UseGuards(JwtAuthGuard)
   @All('ai')
   async proxyAiBase(@Req() req: Request, @Res() res: Response) {
     return this.forwardToService('ai', req.url, req, res);
   }
 
+  @Throttle(RATE_LIMIT.ai)
   @UseGuards(JwtAuthGuard)
   @All('ai/*')
   async proxyAi(@Req() req: Request, @Res() res: Response) {
     return this.forwardToService('ai', req.url, req, res);
   }
 
-  //   private async forwardToService(
-  //   service: string,    // Tên service cần gọi
-  //   path: string,       // Đường dẫn API
-  //   req: Request,       // Request object từ client
-  //   res: Response       // Response object để trả về client
-  // )
-  // Hàm này sẽ sử dụng ProxyService để chuyển tiếp yêu cầu từ client đến microservice tương ứng
   private async forwardToService(service: string, path: string, req: Request, res: Response) {
     try {
       const result = await this.proxyService.forwardRequest(
@@ -102,10 +133,8 @@ export class ProxyController {
         req.query
       );
 
-      // Set response headers (bao gồm cookies)
       Object.keys(result.headers).forEach((key) => {
         const lowerKey = key.toLowerCase();
-        // Forward Set-Cookie headers để client nhận được cookies
         if (lowerKey === 'set-cookie') {
           const cookies = result.headers[key];
           if (Array.isArray(cookies)) {
@@ -113,9 +142,7 @@ export class ProxyController {
           } else {
             res.setHeader('Set-Cookie', cookies);
           }
-        }
-        // Skip encoding headers
-        else if (!['content-encoding', 'transfer-encoding'].includes(lowerKey)) {
+        } else if (!['content-encoding', 'transfer-encoding'].includes(lowerKey)) {
           res.setHeader(key, result.headers[key]);
         }
       });
@@ -125,7 +152,7 @@ export class ProxyController {
       console.error(`Error forwarding to ${service}:`, error.message);
       return res.status(503).json({
         statusCode: 503,
-        message: `Service ${service} không khả dụng`,
+        message: `Service ${service} khong kha dung`,
         error: 'Service Unavailable',
       });
     }
