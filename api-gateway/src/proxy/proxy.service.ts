@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosRequestConfig } from 'axios';
 
+const DEFAULT_PROXY_TIMEOUT_MS = 5000;
+const DEFAULT_PROXY_RETRY_DELAY_MS = 3000;
+const DEFAULT_PROXY_RETRY_ATTEMPTS = 1;
+
 interface ProxyResponse {
   status: number;
   data: any;
@@ -11,6 +15,9 @@ interface ProxyResponse {
 @Injectable()
 export class ProxyService {
   private readonly serviceUrls: Map<string, string>;
+  private readonly proxyTimeoutMs: number;
+  private readonly retryDelayMs: number;
+  private readonly retryAttempts: number;
 
   constructor(private configService: ConfigService) {
     this.serviceUrls = new Map([
@@ -21,6 +28,9 @@ export class ProxyService {
       ['chat', this.configService.get('CHAT_SERVICE_URL')],
       ['ai', this.configService.get('AI_SERVICE_URL')],
     ]);
+    this.proxyTimeoutMs = Number(this.configService.get('PROXY_TIMEOUT_MS') ?? DEFAULT_PROXY_TIMEOUT_MS);
+    this.retryDelayMs = Number(this.configService.get('PROXY_RETRY_DELAY_MS') ?? DEFAULT_PROXY_RETRY_DELAY_MS);
+    this.retryAttempts = Number(this.configService.get('PROXY_RETRY_ATTEMPTS') ?? DEFAULT_PROXY_RETRY_ATTEMPTS);
   }
 
   // Mục đích để chuyển tiếp yêu cầu đến các microservice tương ứng
@@ -61,6 +71,7 @@ export class ProxyService {
       url,
       headers: requestHeaders,
       params: query,
+      timeout: this.proxyTimeoutMs,
     };
 
     if (body && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
@@ -68,7 +79,7 @@ export class ProxyService {
     }
 
     try {
-      const response = await axios(config);
+      const response = await this.requestWithRetry(config);
       return {
         status: response.status,
         data: response.data,
@@ -84,5 +95,41 @@ export class ProxyService {
       }
       throw error;
     }
+  }
+
+  private async requestWithRetry(config: AxiosRequestConfig) {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= this.retryAttempts; attempt += 1) {
+      try {
+        return await axios(config);
+      } catch (error) {
+        lastError = error;
+        if (!this.shouldRetry(config, error, attempt)) {
+          throw error;
+        }
+        await this.sleep(this.retryDelayMs);
+      }
+    }
+
+    throw lastError;
+  }
+
+  private shouldRetry(config: AxiosRequestConfig, error: unknown, attempt: number) {
+    if (attempt >= this.retryAttempts || !axios.isAxiosError(error)) return false;
+
+    const method = String(config.method ?? 'GET').toUpperCase();
+    const isSafeMethod = method === 'GET' || method === 'HEAD';
+    if (!isSafeMethod) return false;
+
+    const status = error.response?.status;
+    const isTimeoutOrNetworkError = error.code === 'ECONNABORTED' || !error.response;
+    const isServerError = typeof status === 'number' && status >= 500;
+
+    return isTimeoutOrNetworkError || isServerError;
+  }
+
+  private sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
