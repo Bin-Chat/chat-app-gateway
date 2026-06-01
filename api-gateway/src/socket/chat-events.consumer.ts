@@ -6,6 +6,7 @@ import { SocketGateway } from './socket.gateway';
 const CHAT_EVENTS = {
   MESSAGE_CREATED: 'chat.message.created',
   MESSAGE_REVOKED: 'chat.message.revoked',
+  MESSAGE_RESTORED: 'chat.message.restored',
   MESSAGE_EDITED: 'chat.message.edited',
   MESSAGE_PINNED: 'chat.message.pinned',
   MESSAGE_UNPINNED: 'chat.message.unpinned',
@@ -52,6 +53,14 @@ export class ChatEventsConsumer {
     this.logger.log(`[chat.message.revoked] msg=${event.messageId} conv=${event.conversationId}`);
     for (const userId of event.participants) {
       this.socketGateway.emitToUser(userId, 'message:revoked', event);
+    }
+  }
+
+  @EventPattern(CHAT_EVENTS.MESSAGE_RESTORED)
+  handleMessageRestored(@Payload() event: any) {
+    this.logger.log(`[chat.message.restored] msg=${event.messageId} conv=${event.conversationId}`);
+    for (const userId of event.participants) {
+      this.socketGateway.emitToUser(userId, 'message:restored', event);
     }
   }
 

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios, { AxiosRequestConfig } from 'axios';
 
 const DEFAULT_PROXY_TIMEOUT_MS = 5000;
+const DEFAULT_AI_PROXY_TIMEOUT_MS = 120000;
 const DEFAULT_PROXY_RETRY_DELAY_MS = 3000;
 const DEFAULT_PROXY_RETRY_ATTEMPTS = 1;
 
@@ -16,6 +17,7 @@ interface ProxyResponse {
 export class ProxyService {
   private readonly serviceUrls: Map<string, string>;
   private readonly proxyTimeoutMs: number;
+  private readonly aiProxyTimeoutMs: number;
   private readonly retryDelayMs: number;
   private readonly retryAttempts: number;
 
@@ -29,6 +31,9 @@ export class ProxyService {
       ['ai', this.configService.get('AI_SERVICE_URL')],
     ]);
     this.proxyTimeoutMs = Number(this.configService.get('PROXY_TIMEOUT_MS') ?? DEFAULT_PROXY_TIMEOUT_MS);
+    this.aiProxyTimeoutMs = Number(
+      this.configService.get('AI_PROXY_TIMEOUT_MS') ?? DEFAULT_AI_PROXY_TIMEOUT_MS
+    );
     this.retryDelayMs = Number(this.configService.get('PROXY_RETRY_DELAY_MS') ?? DEFAULT_PROXY_RETRY_DELAY_MS);
     this.retryAttempts = Number(this.configService.get('PROXY_RETRY_ATTEMPTS') ?? DEFAULT_PROXY_RETRY_ATTEMPTS);
   }
@@ -71,7 +76,7 @@ export class ProxyService {
       url,
       headers: requestHeaders,
       params: query,
-      timeout: this.proxyTimeoutMs,
+      timeout: service === 'ai' ? this.aiProxyTimeoutMs : this.proxyTimeoutMs,
     };
 
     if (body && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
@@ -101,13 +106,15 @@ export class ProxyService {
    * Retry co kiem soat cho request tu API Gateway sang microservice noi bo.
    *
    * Luong xu ly:
-   * 1. Gateway goi service dich voi timeout cau hinh boi PROXY_TIMEOUT_MS.
+   * 1. Gateway goi service dich voi timeout cau hinh. AI dung
+   *    AI_PROXY_TIMEOUT_MS vi RAG co them buoc embedding va LLM generation.
    * 2. Neu request thanh cong thi tra ve ngay.
    * 3. Neu request loi tam thoi, Gateway cho PROXY_RETRY_DELAY_MS roi thu lai.
    * 4. Neu het so lan retry ma van loi, loi duoc nem ra de controller tra 503.
    *
    * Mac dinh production:
    * - timeout: 5000ms
+   * - AI timeout: 120000ms
    * - retry delay: 3000ms
    * - retry attempts: 1
    */

@@ -1,13 +1,15 @@
 import { All, Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
+import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdminGuard } from '../auth/admin.guard';
 import { ProxyService } from './proxy.service';
 
 const RATE_LIMIT = {
   health: { default: { ttl: 60_000, limit: 300 } },
-  authSensitive: { default: { ttl: 60_000, limit: 10 } },
-  authGeneral: { default: { ttl: 60_000, limit: 60 } },
+  authSensitive: { default: { ttl: 60_000, limit: 10 } }, // này là cho các endpoint auth dễ bị brute force như login, OTP, register, forgot-password, reset-password, v.v.
+  authGeneral: { default: { ttl: 60_000, limit: 60 } }, // này là cho các endpoint auth còn lại như refresh token, verify OTP, resend verification, v.v. có thể thoáng hơn login/OTP nhưng vẫn cần limit để tránh spam.
   userSearch: { default: { ttl: 60_000, limit: 60 } },
   friend: { default: { ttl: 60_000, limit: 120 } },
   upload: { default: { ttl: 60_000, limit: 30 } },
@@ -109,6 +111,20 @@ export class ProxyController {
   }
 
   @Throttle(RATE_LIMIT.ai)
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @All('ai/documents')
+  async proxyAiAdminDocumentsBase(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('ai', req.url, req, res);
+  }
+
+  @Throttle(RATE_LIMIT.ai)
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @All('ai/documents/*')
+  async proxyAiAdminDocuments(@Req() req: Request, @Res() res: Response) {
+    return this.forwardToService('ai', req.url, req, res);
+  }
+
+  @Throttle(RATE_LIMIT.ai)
   @UseGuards(JwtAuthGuard)
   @All('ai')
   async proxyAiBase(@Req() req: Request, @Res() res: Response) {
@@ -150,10 +166,14 @@ export class ProxyController {
       return res.status(result.status).json(result.data);
     } catch (error) {
       console.error(`Error forwarding to ${service}:`, error.message);
-      return res.status(503).json({
-        statusCode: 503,
-        message: `Service ${service} khong kha dung`,
-        error: 'Service Unavailable',
+      const timedOut = axios.isAxiosError(error) && error.code === 'ECONNABORTED';
+      const statusCode = timedOut ? 504 : 503;
+      return res.status(statusCode).json({
+        statusCode,
+        message: timedOut
+          ? `Service ${service} dang xu ly lau hon du kien. Vui long thu lai.`
+          : `Service ${service} khong kha dung`,
+        error: timedOut ? 'Gateway Timeout' : 'Service Unavailable',
       });
     }
   }
