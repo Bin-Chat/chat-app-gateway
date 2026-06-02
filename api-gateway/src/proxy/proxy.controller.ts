@@ -12,7 +12,7 @@ const RATE_LIMIT = {
   authGeneral: { default: { ttl: 60_000, limit: 60 } }, // này là cho các endpoint auth còn lại như refresh token, verify OTP, resend verification, v.v. có thể thoáng hơn login/OTP nhưng vẫn cần limit để tránh spam.
   userSearch: { default: { ttl: 60_000, limit: 60 } },
   friend: { default: { ttl: 60_000, limit: 120 } },
-  upload: { default: { ttl: 60_000, limit: 30 } },
+  upload: { default: { ttl: 60_000, limit: 240 } },
   chat: { default: { ttl: 60_000, limit: 240 } },
   ai: { default: { ttl: 60_000, limit: 20 } },
 };
