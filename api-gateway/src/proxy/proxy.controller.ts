@@ -1,5 +1,5 @@
-import { All, Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { All, Controller, Get, Headers, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import axios from 'axios';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -27,6 +27,26 @@ export class ProxyController {
     return {
       status: 'ok',
       service: 'API Gateway',
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @SkipThrottle()
+  @Get('load-test/ping')
+  loadTestPing(@Headers('x-load-test-token') token?: string) {
+    const expectedToken =
+      process.env.LOAD_TEST_TOKEN ||
+      (process.env.NODE_ENV === 'production' ? undefined : 'binchat-load-test');
+
+    if (!expectedToken || token !== expectedToken) {
+      throw new UnauthorizedException('Invalid load test token');
+    }
+
+    return {
+      status: 'ok',
+      service: 'API Gateway',
+      mode: 'load-test',
+      rateLimit: 'bypassed',
       timestamp: new Date().toISOString(),
     };
   }
